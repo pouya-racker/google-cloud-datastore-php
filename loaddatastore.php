@@ -6,7 +6,7 @@ use Google\Cloud\Datastore\DatastoreClient;
 
 try
 {
-	$projectId = getenv('PROJ_ID');
+	$projectId = getenv('PROJECT_ID');
 	$datastore = new DatastoreClient([
 	    'projectId' => $projectId
 	]);
