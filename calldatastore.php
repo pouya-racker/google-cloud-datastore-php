@@ -8,7 +8,7 @@ try
 	$mem = new Memcached();
 	$mem->addServer("127.0.0.1", 11211);
 
-	$projectId = 'triple-cab-162115';
+	$projectId = getenv('PROJECT_ID');
 	$datastore = new DatastoreClient([
 	    'projectId' => $projectId
 	]);
