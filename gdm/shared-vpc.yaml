@@ -1,0 +1,21 @@
+---
+resources:
+- type: compute.v1.network
+  name: webapp-net
+  properties:
+    autoCreateSubnetworks: False
+    network_description: 'WebApp Share VPC'
+
+- type: compute.v1.subnetwork
+  name: us-west-subnet
+  properties:
+    network: $(ref.webapp-net.selfLink)
+    ipCidrRange: &US_WEST_SUBNET 172.16.4.0/22
+    region: &REGION1 us-west1
+
+- type: compute.v1.subnetwork
+  name: us-east-subnet
+  properties:
+    network: $(ref.webapp-net.selfLink)
+    ipCidrRange: &US_EAST_SUBNET 172.16.8.0/22
+    region: &REGION2 us-east1
