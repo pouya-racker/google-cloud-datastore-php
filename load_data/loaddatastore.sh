@@ -3,8 +3,19 @@
 FILE=$1
 COUNT=${2:-`wc -l $FILE|awk '{print $1}'`}
 
-##Reading and exporting project_id from metadata
+##Reading and exporting project_id and zone from metadata
 export PROJECT_ID=`curl -s "http://metadata.google.internal/computeMetadata/v1/project/project-id" -H "Metadata-Flavor: Google"`
+export ZONE=`curl -s "http://metadata.google.internal/computeMetadata/v1/instance/zone" -H "Metadata-Flavor: Google" |cut -d'/' -f4`
+export NAME=`curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google" |cut -d'/' -f4`
+
+cat > zone.html << EOF
+<html>
+<body>
+<h1>Zone: $(ZONE)</h1>
+<h1>Instnace_Name: $(NAME)</h1>
+</body>
+</html>
+EOF
 
 readarray -n $COUNT -t LINES < $FILE
 for LINE in "${LINES[@]}"; do
