@@ -11,7 +11,7 @@ resources:
    properties:
      network: &NETWORK projects/autocomplete-webapp-vpc/global/networks/webapp-net
      region1_subnet: &REGION1_SUBNET projects/autocomplete-webapp-vpc/regions/us-west1/subnetworks/us-west-subnet
-     region2_subnet: &REGION2_SUBNET projects/autocomplete-webapp-vpc/regions/us-west1/subnetworks/us-east-subnet
+     region2_subnet: &REGION2_SUBNET projects/autocomplete-webapp-vpc/regions/us-east1/subnetworks/us-east-subnet
      region1: &REGION1 us-west1
      region2: &REGION2 us-east1
      r1_zone1: &R1_ZONE1 us-west1-a
@@ -24,66 +24,77 @@ resources:
    name: webapp-sa
    properties:
      displayName: webapp-sa
+     accountId: webapp-sa
 ##Creating WebApp Template in R1
  - type: compute.v1.instanceTemplate
    name: webapp-it-r1
    properties:
-      machineType: n1-standard-1
-      networkInterfaces:
-      - network: *NETWORK
-        subnetwork: *REGION1_SUBNET
-      disks:
-      - deviceName: boot
-        boot: true
-        autoDelete: true
-        initializeParams:
-          sourceImage: *WEBAPP_IMAGE
-          diskSizeGb: 10
-      tags:
-        items:
-        - webapp
-      serviceAccounts:
-        - email: $(ref.webapp-sa.selflink)
-          scopes:
-            - https://www.googleapis.com/auth/cloud-platform
-      metadata:
-        items:
-        - key: startup-script
-          value: |
-            #! /bin/bash
-            # Install SD Logging Agent
-            curl -sSO https://dl.google.com/cloudagents/install-logging-agent.sh |bash
-            # Install SD Monitoring Agent
-            curl -sSO https://dl.google.com/cloudagents/install-monitoring-agent.sh |bash
+      project: autocomplete-webapp-vpc
+      properties:
+        machineType: n1-standard-1
+        networkInterfaces:
+        - network: *NETWORK
+          subnetwork: *REGION1_SUBNET
+          accessConfigs:
+          - name: External NAT
+            type: ONE_TO_ONE_NAT
+        disks:
+        - deviceName: boot
+          boot: true
+          autoDelete: true
+          initializeParams:
+            sourceImage: *WEBAPP_IMAGE
+            diskSizeGb: 10
+        tags:
+          items:
+          - webapp
+        serviceAccounts:
+          - email: $(ref.webapp-sa.email)
+            scopes:
+              - https://www.googleapis.com/auth/cloud-platform
+        metadata:
+          items:
+          - key: startup-script
+            value: |
+              #! /bin/bash
+              # Install SD Logging Agent
+              curl -sSO https://dl.google.com/cloudagents/install-logging-agent.sh |bash
+              # Install SD Monitoring Agent
+              curl -sSO https://dl.google.com/cloudagents/install-monitoring-agent.sh |bash
 
 ##Creating WebApp Template in R2
  - type: compute.v1.instanceTemplate
    name: webapp-it-r2
    properties:
-      machineType: n1-standard-1
-      networkInterfaces:
-      - network: *NETWORK
-        subnetwork: *REGION2_SUBNET
-      disks:
-      - deviceName: boot
-        boot: true
-        autoDelete: true
-        initializeParams:
-          sourceImage: *WEBAPP_IMAGE
-          diskSizeGb: 10
-      tags:
-        items:
-        - webapp
-      serviceAccounts:
-        - email: $(ref.webapp-sa.selflink)
-          scopes:
-            - https://www.googleapis.com/auth/cloud-platform
-      metadata:
-        items:
-        - key: startup-script
-          value: |
-            #! /bin/bash
-            # Install SD Logging Agent
-            curl -sSO https://dl.google.com/cloudagents/install-logging-agent.sh |bash
-            # Install SD Monitoring Agent
-            curl -sSO https://dl.google.com/cloudagents/install-monitoring-agent.sh |bash
+      project: autocomplete-webapp-vpc
+      properties:
+        machineType: n1-standard-1
+        networkInterfaces:
+        - network: *NETWORK
+          subnetwork: *REGION2_SUBNET
+          accessConfigs:
+          - name: External NAT
+            type: ONE_TO_ONE_NAT
+        disks:
+        - deviceName: boot
+          boot: true
+          autoDelete: true
+          initializeParams:
+            sourceImage: *WEBAPP_IMAGE
+            diskSizeGb: 10
+        tags:
+          items:
+          - webapp
+        serviceAccounts:
+          - email: $(ref.webapp-sa.email)
+            scopes:
+              - https://www.googleapis.com/auth/cloud-platform
+        metadata:
+          items:
+          - key: startup-script
+            value: |
+              #! /bin/bash
+              # Install SD Logging Agent
+              curl -sSO https://dl.google.com/cloudagents/install-logging-agent.sh |bash
+              # Install SD Monitoring Agent
+              curl -sSO https://dl.google.com/cloudagents/install-monitoring-agent.sh |bash
