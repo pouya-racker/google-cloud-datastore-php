@@ -1,100 +1,160 @@
 ---
 ##Improting Templates
 imports:
- - path: const.py
-   name: const.py
+- path: const.py
+  name: const.py
 ##Defining Resources
 resources:
 ##Defining Constants
- - type: const.py
-   name: autocomplete-webapp-consts
-   properties:
-     network: &NETWORK projects/autocomplete-webapp-vpc/global/networks/webapp-net
-     region1_subnet: &REGION1_SUBNET projects/autocomplete-webapp-vpc/regions/us-west1/subnetworks/us-west-subnet
-     region2_subnet: &REGION2_SUBNET projects/autocomplete-webapp-vpc/regions/us-east1/subnetworks/us-east-subnet
-     region1: &REGION1 us-west1
-     region2: &REGION2 us-east1
-     r1_zone1: &R1_ZONE1 us-west1-a
-     r1_zone2: &R1_ZONE2 us-west1-b
-     r2_zone1: &R2_ZONE1 us-east1-a
-     r2_zone2: &R2_ZONE2 us-east1-b
-     webapp_image: &WEBAPP_IMAGE projects/debian-cloud/global/images/debian-9-stretch-v20180501
+- type: const.py
+  name: autocomplete-webapp-consts
+  properties:
+    network: &NETWORK projects/autocomplete-webapp-vpc/global/networks/webapp-net
+    region1_subnet: &REGION1_SUBNET projects/autocomplete-webapp-vpc/regions/us-west1/subnetworks/us-west-subnet
+    region2_subnet: &REGION2_SUBNET projects/autocomplete-webapp-vpc/regions/us-east1/subnetworks/us-east-subnet
+    region1: &REGION1 us-west1
+    region2: &REGION2 us-east1
+    webapp_image: &WEBAPP_IMAGE projects/debian-cloud/global/images/debian-9-stretch-v20180501
 ##Creating WebApp Service Account
- - type: iam.v1.serviceAccount
-   name: webapp-sa
-   properties:
-     displayName: webapp-sa
-     accountId: webapp-sa
+- type: iam.v1.serviceAccount
+  name: webapp-sa
+  properties:
+    displayName: webapp-sa
+    accountId: webapp-sa
+# HTTP Health-Check
+- type: compute.v1.healthCheck
+  name: webapp-hc
+  properties:
+    type: 'HTTP'
+    httpHealthCheck:
+      port: 80
+#Region1 WebApp#################
 ##Creating WebApp Template in R1
- - type: compute.v1.instanceTemplate
-   name: webapp-it-r1
-   properties:
-      project: autocomplete-webapp-vpc
-      properties:
-        machineType: n1-standard-1
-        networkInterfaces:
-        - network: *NETWORK
-          subnetwork: *REGION1_SUBNET
-          accessConfigs:
-          - name: External NAT
-            type: ONE_TO_ONE_NAT
-        disks:
-        - deviceName: boot
-          boot: true
-          autoDelete: true
-          initializeParams:
-            sourceImage: *WEBAPP_IMAGE
-            diskSizeGb: 10
-        tags:
-          items:
-          - webapp
-        serviceAccounts:
-          - email: $(ref.webapp-sa.email)
-            scopes:
-              - https://www.googleapis.com/auth/cloud-platform
-        metadata:
-          items:
-          - key: startup-script
-            value: |
-              #! /bin/bash
-              # Install SD Logging Agent
-              curl -sSO https://dl.google.com/cloudagents/install-logging-agent.sh |bash
-              # Install SD Monitoring Agent
-              curl -sSO https://dl.google.com/cloudagents/install-monitoring-agent.sh |bash
-
+- type: compute.v1.instanceTemplate
+  name: webapp-it-r1
+  properties:
+    project: autocomplete-webapp-vpc
+    properties:
+      machineType: n1-standard-1
+      networkInterfaces:
+      - network: *NETWORK
+        subnetwork: *REGION1_SUBNET
+        accessConfigs:
+        - name: External NAT
+          type: ONE_TO_ONE_NAT
+      disks:
+      - deviceName: boot
+        boot: true
+        autoDelete: true
+        initializeParams:
+          sourceImage: *WEBAPP_IMAGE
+          diskSizeGb: 10
+      tags:
+        items:
+        - webapp
+      serviceAccounts:
+        - email: $(ref.webapp-sa.email)
+          scopes:
+            - https://www.googleapis.com/auth/cloud-platform
+      metadata:
+        items:
+        - key: startup-script
+          value: |
+            #! /bin/bash
+            # Install SD Logging Agent
+            curl -sSO https://dl.google.com/cloudagents/install-logging-agent.sh |bash
+            # Install SD Monitoring Agent
+            curl -sSO https://dl.google.com/cloudagents/install-monitoring-agent.sh |bash
+            # Installing Apache
+            apt-get update; apt-get install -y apache2; cd /var/www/html
+            #Reading and exporting project_id and zone from metadata
+            export PROJECT_ID=`curl -s "http://metadata.google.internal/computeMetadata/v1/project/project-id" -H "Metadata-Flavor: Google"`
+            touch zone.html
+            echo "<html>" > zone.html
+            echo "<body>" >> zone.html
+            echo "<h1>Zone: `curl -s "http://metadata.google.internal/computeMetadata/v1/instance/zone" -H "Metadata-Flavor: Google" |cut -d'/' -f4`</h1>" >> zone.html
+            echo "<h1>Instnace_Name: `curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google" |cut -d'/' -f4`</h1>" >> zone.html
+            echo "</body>" >> zone.html
+            echo "</html>" >> zone.html
+# Region1 IGM
+- type: compute.v1.regionInstanceGroupManager
+  name: webapp-igm-r1
+  properties:
+    region: *REGION1
+    instanceTemplate: $(ref.webapp-it-r1.selfLink)
+    targetSize: 1
+    autoHealingPolicies:
+     - healthCheck: $(ref.webapp-hc.selfLink)
+#Instance Group AutoScaler R1
+- type: compute.v1.regionAutoscaler
+  name: webapp-as-r1
+  properties:
+    autoscalingPolicy:
+      maxNumReplicas: 3
+    target: $(ref.webapp-igm-r1.selfLink)
+    region: *REGION1
+#Region2 WebApp#################
 ##Creating WebApp Template in R2
- - type: compute.v1.instanceTemplate
-   name: webapp-it-r2
-   properties:
-      project: autocomplete-webapp-vpc
-      properties:
-        machineType: n1-standard-1
-        networkInterfaces:
-        - network: *NETWORK
-          subnetwork: *REGION2_SUBNET
-          accessConfigs:
-          - name: External NAT
-            type: ONE_TO_ONE_NAT
-        disks:
-        - deviceName: boot
-          boot: true
-          autoDelete: true
-          initializeParams:
-            sourceImage: *WEBAPP_IMAGE
-            diskSizeGb: 10
-        tags:
-          items:
-          - webapp
-        serviceAccounts:
-          - email: $(ref.webapp-sa.email)
-            scopes:
-              - https://www.googleapis.com/auth/cloud-platform
-        metadata:
-          items:
-          - key: startup-script
-            value: |
-              #! /bin/bash
-              # Install SD Logging Agent
-              curl -sSO https://dl.google.com/cloudagents/install-logging-agent.sh |bash
-              # Install SD Monitoring Agent
-              curl -sSO https://dl.google.com/cloudagents/install-monitoring-agent.sh |bash
+- type: compute.v1.instanceTemplate
+  name: webapp-it-r2
+  properties:
+    project: autocomplete-webapp-vpc
+    properties:
+      machineType: n1-standard-1
+      networkInterfaces:
+      - network: *NETWORK
+        subnetwork: *REGION2_SUBNET
+        accessConfigs:
+        - name: External NAT
+          type: ONE_TO_ONE_NAT
+      disks:
+      - deviceName: boot
+        boot: true
+        autoDelete: true
+        initializeParams:
+          sourceImage: *WEBAPP_IMAGE
+          diskSizeGb: 10
+      tags:
+        items:
+        - webapp
+      serviceAccounts:
+        - email: $(ref.webapp-sa.email)
+          scopes:
+            - https://www.googleapis.com/auth/cloud-platform
+      metadata:
+        items:
+        - key: startup-script
+          value: |
+            #! /bin/bash
+            # Install SD Logging Agent
+            curl -sSO https://dl.google.com/cloudagents/install-logging-agent.sh |bash
+            # Install SD Monitoring Agent
+            curl -sSO https://dl.google.com/cloudagents/install-monitoring-agent.sh |
+            # Installing Apache
+            apt-get update; apt-get install -y apache2; cd /var/www/html
+            #Reading and exporting project_id and zone from metadata
+            export PROJECT_ID=`curl -s "http://metadata.google.internal/computeMetadata/v1/project/project-id" -H "Metadata-Flavor: Google"`
+            touch zone.html
+            echo "<html>" > zone.html
+            echo "<body>" >> zone.html
+            echo "<h1>Zone: `curl -s "http://metadata.google.internal/computeMetadata/v1/instance/zone" -H "Metadata-Flavor: Google" |cut -d'/' -f4`</h1>" >> zone.html
+            echo "<h1>Instnace_Name: `curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google" |cut -d'/' -f4`</h1>" >> zone.html
+            echo "</body>" >> zone.html
+            echo "</html>" >> zone.html
+# Region2 IGM
+- type: compute.v1.regionInstanceGroupManager
+  name: webapp-igm-r2
+  properties:
+    region: *REGION2
+    instanceTemplate: $(ref.webapp-it-r2.selfLink)
+    targetSize: 1
+    autoHealingPolicies:
+     - healthCheck: $(ref.webapp-hc.selfLink)
+#Instance Group AutoScaler R2
+- type: compute.v1.regionAutoscaler
+  name: webapp-as-r2
+  properties:
+    autoscalingPolicy:
+      maxNumReplicas: 3
+    target: $(ref.webapp-igm-r2.selfLink)
+    region: *REGION2
