@@ -68,7 +68,8 @@ resources:
             # Installing Apache
             apt-get update; apt-get install -y apache2; cd /var/www/html
             #Reading and exporting project_id and zone from metadata
-            export PROJECT_ID=`curl -s "http://metadata.google.internal/computeMetadata/v1/project/project-id" -H "Metadata-Flavor: Google"`
+            echo "export PROJECT_ID=`curl -s "http://metadata.google.internal/computeMetadata/v1/project/project-id" -H "Metadata-Flavor: Google"`" >> /etc/environment
+            source /etc/environment
             touch zone.html
             echo "<html>" > zone.html
             echo "<body>" >> zone.html
@@ -133,7 +134,8 @@ resources:
             # Installing Apache
             apt-get update; apt-get install -y apache2; cd /var/www/html
             #Reading and exporting project_id and zone from metadata
-            export PROJECT_ID=`curl -s "http://metadata.google.internal/computeMetadata/v1/project/project-id" -H "Metadata-Flavor: Google"`
+            echo "export PROJECT_ID=`curl -s "http://metadata.google.internal/computeMetadata/v1/project/project-id" -H "Metadata-Flavor: Google"`" >> /etc/environment
+            source /etc/environment
             touch zone.html
             echo "<html>" > zone.html
             echo "<body>" >> zone.html
