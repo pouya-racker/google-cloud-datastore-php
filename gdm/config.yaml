@@ -1,9 +1,9 @@
 ---
-##Improting Templates
+##Improting Templates###############################################################################
 imports:
 - path: const.py
   name: const.py
-##Defining Resources
+##Defining Resources###############################################################################
 resources:
 ##Defining Constants
 - type: const.py
@@ -28,7 +28,7 @@ resources:
     type: 'HTTP'
     httpHealthCheck:
       port: 80
-#Region1 WebApp#################
+#Region1 WebApp################################################################################
 ##Creating WebApp Template in R1
 - type: compute.v1.instanceTemplate
   name: webapp-it-r1
@@ -93,7 +93,7 @@ resources:
       maxNumReplicas: 3
     target: $(ref.webapp-igm-r1.selfLink)
     region: *REGION1
-#Region2 WebApp#################
+#Region2 WebApp###############################################################################
 ##Creating WebApp Template in R2
 - type: compute.v1.instanceTemplate
   name: webapp-it-r2
@@ -158,3 +158,56 @@ resources:
       maxNumReplicas: 3
     target: $(ref.webapp-igm-r2.selfLink)
     region: *REGION2
+## FrontEnd External HTTPS Load-Balancer###############################################################################
+# EXT-LB Global IP address
+- type: compute.v1.globalAddress
+  name: webapp-ip1-lb1
+  properties:
+    ipVersion: IPV4
+# HTTP Health-Check
+- type: compute.v1.healthCheck
+  name: webapp-ext-hc
+  properties:
+    type: 'HTTP'
+    httpHealthCheck:
+      port: 80
+# Backend Service
+- type: compute.v1.backendService
+  name: webapp-be
+  properties:
+    healthChecks:
+      - $(ref.webapp-ext-hc.selfLink)
+#    backends:
+#      - group: $(ref.webapp-igm-r1.selfLink)
+#      - group: $(ref.webapp-igm-r2.selfLink)
+    loadBalancingScheme: 'EXTERNAL'
+# URLMAP
+- type: compute.v1.urlMap
+  name: webapp-mapper
+  properties:
+    defaultService: $(ref.webapp-be.selfLink)
+    hostRules:
+      - hosts:
+        - "*"
+        pathMatcher: pathmatcher1
+    pathMatchers:
+      - name: 'pathmatcher1'
+        defaultService: $(ref.webapp-be.selfLink)
+        pathRules:
+         - service: $(ref.webapp-be.selfLink)
+           paths:
+           - '/'
+# HTTP Proxy
+- type: compute.v1.targetHttpProxy
+  name: http-proxy
+  properties:
+    urlMap: $(ref.webapp-mapper.selfLink)
+# Global Forwarding Rule To Target HTTP Proxy
+- type: compute.v1.globalForwardingRule
+  name: webapp-ext-lb
+  properties:
+    portRange: 80
+    IPProtocol: TCP
+    IPAddress: $(ref.webapp-ip1-lb1.selfLink)
+    target: $(ref.http-proxy.selfLink)
+    loadBalancingScheme: 'EXTERNAL'
